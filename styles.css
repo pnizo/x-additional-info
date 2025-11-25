@@ -1,0 +1,45 @@
+/* Styles for X Info Extension */
+
+.x-info-badge-container {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    font-family: TwitterChirp, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    color: #536471; /* Secondary text color */
+}
+
+.x-info-badge {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background-color: rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Dark mode support (basic heuristic, might need refinement) */
+@media (prefers-color-scheme: dark) {
+    .x-info-badge {
+        background-color: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.2);
+        color: #e7e9ea;
+    }
+}
+
+.x-info-icon {
+    font-size: 1.2em;
+}
+
+.x-info-label {
+    font-weight: bold;
+}
+
+/* Timeline Icons */
+.x-info-timeline-icon {
+    margin-left: 4px;
+    font-size: 1.1em;
+    vertical-align: middle;
+    cursor: help;
+}
