@@ -418,14 +418,13 @@ function getCountryFlag(countryName) {
   return countryFlags[countryName] || '❓';
 }
 
-function injectTimelineIcons(tweet, username) {
+function injectTimelineIcons(userNameElement, username) {
   const key = `x-info-${username}`;
   try {
     chrome.storage.local.get([key], (result) => {
       if (chrome.runtime.lastError) return;
 
       const data = result[key];
-      const userNameElement = tweet.querySelector(CONFIG.selectors.userName);
       if (!userNameElement) return;
 
       const usernameSpan = Array.from(userNameElement.querySelectorAll('span')).find(
