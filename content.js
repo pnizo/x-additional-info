@@ -54,7 +54,11 @@ try {
 const state = {
   observedTweets: new Set(),
   fetchingUsers: new Set(),
-  injectedProfiles: new Set()
+  injectedProfiles: new Set(),
+  requestQueue: [],
+  isProcessingQueue: false,
+  lastRequestTime: 0,
+  minRequestInterval: 1000 // Minimum 1 second between requests
 };
 
 // --- API Helpers ---
@@ -100,6 +104,39 @@ async function fetchTransparencyData(screenName) {
     console.error("X Info: Failed to fetch transparency data", error);
     return null;
   }
+}
+
+// Rate-limited fetch function
+async function queuedFetchTransparencyData(username) {
+  return new Promise((resolve) => {
+    state.requestQueue.push({ username, resolve });
+    processRequestQueue();
+  });
+}
+
+async function processRequestQueue() {
+  if (state.isProcessingQueue || state.requestQueue.length === 0) {
+    return;
+  }
+
+  state.isProcessingQueue = true;
+
+  while (state.requestQueue.length > 0) {
+    const now = Date.now();
+    const timeSinceLastRequest = now - state.lastRequestTime;
+
+    if (timeSinceLastRequest < state.minRequestInterval) {
+      await new Promise(resolve => setTimeout(resolve, state.minRequestInterval - timeSinceLastRequest));
+    }
+
+    const { username, resolve } = state.requestQueue.shift();
+    state.lastRequestTime = Date.now();
+
+    const data = await fetchTransparencyData(username);
+    resolve(data);
+  }
+
+  state.isProcessingQueue = false;
 }
 
 function parseTransparencyData(json, username) {
@@ -183,7 +220,7 @@ function handleProfilePage() {
 
         state.fetchingUsers.add(username);
 
-        fetchTransparencyData(username).then(data => {
+        queuedFetchTransparencyData(username).then(data => {
           state.fetchingUsers.delete(username);
 
           if (profileHeader.querySelector('.x-info-badge-container')) {
@@ -339,7 +376,7 @@ function processUserForTimeline(container, username) {
         if (!state.fetchingUsers.has(username)) {
           state.fetchingUsers.add(username);
 
-          fetchTransparencyData(username).then(data => {
+          queuedFetchTransparencyData(username).then(data => {
             state.fetchingUsers.delete(username);
 
             if (data) {
