@@ -283,50 +283,76 @@ function handleTimeline() {
 
       const tweets = document.querySelectorAll(CONFIG.selectors.timelineTweet);
       tweets.forEach(tweet => {
-        if (tweet.dataset.xInfoInjected) return;
+        // Find all User-Name elements within this tweet (includes main tweet and quoted tweets)
+        const userNameElements = tweet.querySelectorAll(CONFIG.selectors.userName);
 
-        const userLink = tweet.querySelector('a[href^="/"][role="link"]');
-        if (!userLink) return;
+        userNameElements.forEach((userNameElement, index) => {
+          // Create a unique key for this specific user name element
+          const elementId = `user-${index}`;
 
-        const href = userLink.getAttribute('href');
-        const username = '@' + href.replace('/', '');
+          if (userNameElement.dataset.xInfoProcessed === elementId) return;
 
-        if (username) {
-          tweet.dataset.xInfoInjected = "true";
+          // Find the username link within this User-Name element
+          const userLink = userNameElement.querySelector('a[href^="/"][role="link"]');
+          if (!userLink) return;
 
-          const key = `x-info-${username}`;
-          try {
-            chrome.storage.local.get([key], (cacheResult) => {
-              if (chrome.runtime.lastError) return;
+          const href = userLink.getAttribute('href');
 
-              const cachedData = cacheResult[key];
-
-              if (cachedData && isCacheValid(cachedData)) {
-                injectTimelineIcons(tweet, username);
-              } else {
-                if (!state.fetchingUsers.has(username)) {
-                  state.fetchingUsers.add(username);
-
-                  fetchTransparencyData(username).then(data => {
-                    state.fetchingUsers.delete(username);
-
-                    if (data) {
-                      saveProfileData(data);
-                      injectTimelineIcons(tweet, username);
-                    }
-                  }).catch(error => {
-                    state.fetchingUsers.delete(username);
-                  });
-                }
-
-                injectTimelineIcons(tweet, username);
-              }
-            });
-          } catch (e) {
-            // Extension context invalidated
+          // Skip non-user links (status, lists, etc.)
+          if (!href || href.includes('/status/') || href.includes('/i/') || href.includes('/lists/')) {
+            return;
           }
-        }
+
+          const username = '@' + href.replace('/', '').split('/')[0]; // Get just the username part
+
+          if (username && username !== '@') {
+            userNameElement.dataset.xInfoProcessed = elementId;
+
+            // Determine if this is a quoted tweet by checking if it's not the first User-Name
+            const isQuoted = index > 0;
+
+            if (isQuoted) {
+              console.log('X Info: Processing quoted tweet user:', username);
+            }
+
+            processUserForTimeline(userNameElement, username);
+          }
+        });
       });
+    });
+  } catch (e) {
+    // Extension context invalidated
+  }
+}
+
+function processUserForTimeline(container, username) {
+  const key = `x-info-${username}`;
+  try {
+    chrome.storage.local.get([key], (cacheResult) => {
+      if (chrome.runtime.lastError) return;
+
+      const cachedData = cacheResult[key];
+
+      if (cachedData && isCacheValid(cachedData)) {
+        injectTimelineIcons(container, username);
+      } else {
+        if (!state.fetchingUsers.has(username)) {
+          state.fetchingUsers.add(username);
+
+          fetchTransparencyData(username).then(data => {
+            state.fetchingUsers.delete(username);
+
+            if (data) {
+              saveProfileData(data);
+              injectTimelineIcons(container, username);
+            }
+          }).catch(error => {
+            state.fetchingUsers.delete(username);
+          });
+        }
+
+        injectTimelineIcons(container, username);
+      }
     });
   } catch (e) {
     // Extension context invalidated
