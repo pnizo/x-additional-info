@@ -310,56 +310,53 @@ function saveProfileData(data) {
 }
 
 function handleTimeline() {
-  try {
-    chrome.storage.sync.get(['timelineEnabled'], (result) => {
-      if (chrome.runtime.lastError) return;
+  const tweets = document.querySelectorAll(CONFIG.selectors.timelineTweet);
 
-      const timelineEnabled = result.timelineEnabled !== undefined ? result.timelineEnabled : true;
+  tweets.forEach((tweet) => {
+    // Find all User-Name elements in the tweet (including quoted tweets)
+    const allUserNames = tweet.querySelectorAll(CONFIG.selectors.userName);
 
-      if (!timelineEnabled) return;
+    allUserNames.forEach((userNameElement) => {
+      // Skip if already processed
+      if (userNameElement.dataset.xInfoProcessed === 'true') {
+        return;
+      }
 
-      const tweets = document.querySelectorAll(CONFIG.selectors.timelineTweet);
-      tweets.forEach(tweet => {
-        // Find all User-Name elements within this tweet (includes main tweet and quoted tweets)
-        const userNameElements = tweet.querySelectorAll(CONFIG.selectors.userName);
+      // Mark as processed
+      userNameElement.dataset.xInfoProcessed = 'true';
 
-        userNameElements.forEach((userNameElement, index) => {
-          // Create a unique key for this specific user name element
-          const elementId = `user-${index}`;
+      let username = null;
 
-          if (userNameElement.dataset.xInfoProcessed === elementId) return;
+      // Method 1: Try to extract username from a link within the User-Name element
+      // This is more reliable and avoids display names with @ symbols
+      const userLink = userNameElement.querySelector('a[href^="/"][role="link"]');
+      if (userLink) {
+        const href = userLink.getAttribute('href');
+        if (href && !href.includes('/status/') && !href.includes('/i/') && !href.includes('/lists/') && !href.includes('/search')) {
+          username = '@' + href.replace('/', '').split('/')[0];
+        }
+      }
 
-          // Find the username link within this User-Name element
-          const userLink = userNameElement.querySelector('a[href^="/"][role="link"]');
-          if (!userLink) return;
-
-          const href = userLink.getAttribute('href');
-
-          // Skip non-user links (status, lists, etc.)
-          if (!href || href.includes('/status/') || href.includes('/i/') || href.includes('/lists/')) {
-            return;
+      // Method 2: Fallback - extract from span text (for cases where link is not available)
+      if (!username || username === '@') {
+        const spans = userNameElement.querySelectorAll('span');
+        for (const span of spans) {
+          const text = span.textContent.trim();
+          // Look for span that ONLY contains @username pattern (not display name)
+          if (/^@[a-zA-Z0-9_]+$/.test(text)) {
+            username = text;
+            break;
           }
+        }
+      }
 
-          const username = '@' + href.replace('/', '').split('/')[0]; // Get just the username part
+      if (!username || username === '@') {
+        return;
+      }
 
-          if (username && username !== '@') {
-            userNameElement.dataset.xInfoProcessed = elementId;
-
-            // Determine if this is a quoted tweet by checking if it's not the first User-Name
-            const isQuoted = index > 0;
-
-            if (isQuoted) {
-              console.log('X Info: Processing quoted tweet user:', username);
-            }
-
-            processUserForTimeline(userNameElement, username);
-          }
-        });
-      });
+      processUserForTimeline(userNameElement, username);
     });
-  } catch (e) {
-    // Extension context invalidated
-  }
+  });
 }
 
 function processUserForTimeline(container, username) {

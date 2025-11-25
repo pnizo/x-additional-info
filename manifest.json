@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "X-additional-Info",
-  "version": "0.8.1",
+  "version": "1.0.0",
   "description": "Displays additional account information on X (Twitter).",
   "permissions": [
     "storage"
